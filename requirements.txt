@@ -1,0 +1,11 @@
+requests
+duckdb
+pandas
+pyarrow
+numpy
+holidays
+scikit-learn
+xgboost
+lightgbm
+streamlit
+plotly
