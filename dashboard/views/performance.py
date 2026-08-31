@@ -44,8 +44,7 @@ with tab_final:
     st.subheader("Tuned final models — 2023 test set")
     if not final.empty:
         show = final.rename(columns={final.columns[0]: "model"}).set_index("model")
-        st.dataframe(show.style.format("{:.4f}").background_gradient(cmap="Blues", axis=0),
-                     width="stretch")
+        st.dataframe(show.style.format("{:.4f}"), width="stretch")
     a, b, c = st.columns(3)
     with a:
         lib.show_figure("14_roc_curves.png", "ROC curves — final models, 2023")
