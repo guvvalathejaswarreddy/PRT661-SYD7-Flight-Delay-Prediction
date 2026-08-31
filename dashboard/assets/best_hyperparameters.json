@@ -1,0 +1,26 @@
+{
+  "xgboost": {
+    "n_estimators": 433,
+    "max_depth": 6,
+    "learning_rate": 0.013399060561509796,
+    "subsample": 0.8736932106048627,
+    "colsample_bytree": 0.7760609974958406,
+    "reg_alpha": 0.003077180271250686,
+    "reg_lambda": 0.09565499215943825
+  },
+  "lightgbm_classifier": {
+    "n_estimators": 359,
+    "num_leaves": 119,
+    "learning_rate": 0.01303561122512888,
+    "feature_fraction": 0.6783931449676581,
+    "bagging_fraction": 0.6180909155642152,
+    "min_child_samples": 39
+  },
+  "lightgbm_regressor": {
+    "n_estimators": 316,
+    "num_leaves": 102,
+    "learning_rate": 0.06900761731140262,
+    "feature_fraction": 0.6630771634946331,
+    "bagging_fraction": 0.7476954781156898
+  }
+}

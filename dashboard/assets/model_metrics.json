@@ -1,0 +1,29 @@
+{
+  "generated_utc": "2026-08-30T15:14:15.486851+00:00",
+  "training": "stratified 5,000,000-row sample",
+  "train_years": [
+    2018,
+    2019,
+    2022
+  ],
+  "test_year": 2023,
+  "test_rows": 6740139,
+  "classifier": {
+    "model": "LightGBM (tuned)",
+    "auc_roc": 0.6755280342550743,
+    "average_precision": 0.3554173959247695,
+    "f1": 0.4074293743923371,
+    "precision": 0.2977526948578645,
+    "recall": 0.6450221416110782,
+    "brier": 0.23148788879939697,
+    "actual_delay_rate": 0.2056453138429341,
+    "predicted_delay_rate": 0.4454897740239482
+  },
+  "regressor": {
+    "model": "LightGBM (tuned), delayed flights only",
+    "mae": 47.71900177001953,
+    "rmse": 104.25741880077408,
+    "r2": -0.042513251304626465,
+    "n_delayed": 1386078
+  }
+}

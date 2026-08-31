@@ -1,0 +1,6 @@
+Dimension,Measured value
+Volume,"37,877,189 flight records, 2.08 GB in memory (1.30 GB raw Parquet input across 72 monthly files)"
+Velocity,"Batch monthly ingestion, 2018-01-01 to 2023-12-31 (6 years, 72 months)"
+Variety,"19 carriers, 379 origin airports, 379 destination airports"
+Veracity,"0 missing values after upstream cleaning (dedup on flight-leg key, cancelled/diverted flights dropped)"
+Value,"Overall delay rate (15+ min): 18.3% -- supports delay classification, duration regression, carrier/airport benchmarking"

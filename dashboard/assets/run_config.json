@@ -1,0 +1,9 @@
+{
+  "rf_n_estimators": 200,
+  "xgb_lgbm_n_estimators": 300,
+  "optuna_trials_classifier": 25,
+  "optuna_trials_regressor": 20,
+  "shap_sample_size": 8000,
+  "best_model_by_auc": "lightgbm_tuned",
+  "n_rows_total": 37877189
+}
