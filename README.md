@@ -14,7 +14,7 @@ will arrive 15+ minutes late, and if so, predicts how many minutes late.
 | Modelling — full | `notebooks/PRT661_Flight_Delay_Full_Analysis.ipynb` | **The canonical analysis** (see below) |
 | Dashboard | `dashboard/` | Multi-page Streamlit app driven by the trained model |
 
-### The analysis notebook is the source of truth
+### Analysis notebook
 
 `notebooks/PRT661_Flight_Delay_Full_Analysis.ipynb` runs the full 2018–2023
 dataset (~37.9M flights) and implements everything the proposal specifies:

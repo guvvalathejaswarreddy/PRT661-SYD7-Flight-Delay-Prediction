@@ -33,7 +33,7 @@ def main():
     df["is_holiday"] = df["flight_date"].dt.date.isin(us_holidays).astype(int)
 
     # Rolling 7-day delay rate per carrier and per origin airport, computed
-    # only from *prior* days so we don't leak the current day's outcome.
+    # only from prior days so the current day's outcome is not leaked.
     def rolling_rate(frame: pd.DataFrame, key: str, out_col: str) -> pd.Series:
         daily = (
             frame.groupby([key, frame["flight_date"].dt.date])["arr_del15"]

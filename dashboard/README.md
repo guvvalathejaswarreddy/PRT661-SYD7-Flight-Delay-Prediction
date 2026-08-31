@@ -9,24 +9,23 @@ classifier + duration regressor; walk-forward production fold: train
 | Page | Contents |
 |---|---|
 | **Overview** (home) | 2023 predictions: filters, KPIs, predicted-vs-actual delay rate by carrier/airport, probability distribution, weekly trend, flight-level table + CSV export |
-| **Predict a Flight** | Enter carrier / route / date / time → the trained classifier + duration regressor return P(delay), a verdict at your threshold, estimated minutes late, and a plain-language "what's driving this" |
+| **Predict a Flight** | Enter carrier / route / date / time → the trained classifier + duration regressor return P(delay), a verdict at the chosen threshold, estimated minutes late, and a plain-language "what's driving this" |
 | **Model Performance** | Final tuned-model metrics, walk-forward folds, interactive decision-threshold explorer (live confusion matrix), duration regressor, COVID distribution-shift check |
 | **Explainability** | SHAP beeswarm + mean-\|SHAP\| importance, with a written read-out |
 | **Fairness** | Per-group AUC / TPR / FPR and equalised-odds & demographic-parity gaps by carrier, hub tier, geography |
 | **Data & EDA** | Five Vs table, exploratory figures, interactive Plotly views |
 | **About** | Project summary, method, model card, known limitations |
 
-## Run it (VS Code or terminal)
+## Running the dashboard
+
+From the repository's `software/` folder:
 
 ```bash
-# from the repo's software/ folder
 python -m pip install -r dashboard/requirements.txt
-streamlit run dashboard/streamlit_app.py
-# or: ./run_dashboard.sh
+streamlit run dashboard/streamlit_app.py      # or ./run_dashboard.sh
 ```
 
-Then open http://localhost:8501. In VS Code you can also use **Run and Debug →
-Python: Module → streamlit** or just run the command in the integrated terminal.
+The app is served at http://localhost:8501.
 
 ## Data it reads
 
@@ -64,12 +63,12 @@ python dashboard/generate_predictions.py --write-full  # also emit predictions_f
 ```
 
 It re-fits the tuned LightGBM classifier + duration regressor from
-`PRT661_outputs/models/best_hyperparameters.json` on 2018 + 2019 + 2022, scores
-2023, writes a stratified sample to `data/predictions.parquet`, and refreshes
+`assets/best_hyperparameters.json` on 2018 + 2019 + 2022, scores 2023, writes a
+stratified sample to `data/predictions.parquet`, and refreshes
 `assets/model_metrics.json`. Requires `storage/feature-zone/features.parquet`
 (built by `../run_pipeline.sh`) or `--features PATH`.
 
-On the canonical full training set the classifier reaches **AUC-ROC ≈ 0.675**,
-**F1 ≈ 0.41** — see `../PRT661_outputs/final_tuned_model_metrics.csv`. The
-duration regressor's R² ≈ 0 is a reported negative finding (delay *magnitude*
-needs cause-level / weather data). NOAA weather is not yet joined.
+On the full training set the classifier reaches **AUC-ROC ≈ 0.675**, **F1 ≈ 0.41**
+(`assets/final_tuned_model_metrics.csv`). The duration regressor's R² ≈ 0 is a
+reported negative finding — delay magnitude depends on cause-level and weather
+data, which are not yet joined.
