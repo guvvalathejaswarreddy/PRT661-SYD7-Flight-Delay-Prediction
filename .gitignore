@@ -14,8 +14,10 @@ venv/
 # --- Secrets / local config ------------------------------------------
 .env
 *.env
-dataset/bts/          # download cookie jar
 *cookies*
+
+# --- Raw single-month pilot downloads (download cookie jar + CSVs) ------
+dataset/bts/
 
 # --- Raw & intermediate data (regenerate: ingestion/ then processing/) --
 dataset/bts_parquet/

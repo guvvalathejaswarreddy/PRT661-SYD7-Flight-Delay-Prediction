@@ -3,12 +3,23 @@ trained tuned-LightGBM classifier + duration regressor."""
 from __future__ import annotations
 
 import datetime as dt
+import sys
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 import lib
+
+sys.path.insert(0, str(lib.PROJECT_ROOT))
+from ingestion.opensky_live import OpenSkyError, get_live_snapshot  # noqa: E402
+
+
+@st.cache_data(show_spinner=False, ttl=30)
+def _cached_live_snapshot(iata: str):
+    """Cached for 30s so re-running the form doesn't hammer the OpenSky API."""
+    return get_live_snapshot(iata)
+
 
 st.title("Predict a Flight")
 
@@ -141,3 +152,27 @@ st.dataframe(
                   "value": [row[k] for k in lib.ALL_FEATURES]}),
     width="stretch", hide_index=True,
 )
+
+# --------------------------------------------------------------------------
+# Live airport activity (PRT661-16/17) — OpenSky ADS-B snapshot.
+# Purely informational context alongside the prediction above: it does not
+# feed the model, so nothing here changes ALL_FEATURES or requires retraining.
+# --------------------------------------------------------------------------
+st.divider()
+st.subheader("Live airport activity (OpenSky)")
+st.caption(
+    "Live ADS-B snapshot near the selected origin, for operational context "
+    "only — the prediction above always uses the 11 trained features and is "
+    "unaffected by this panel."
+)
+try:
+    snap = _cached_live_snapshot(origin)
+except OpenSkyError as exc:
+    st.info(f"Live data unavailable right now ({exc})")
+else:
+    lc1, lc2, lc3 = st.columns(3)
+    lc1.metric(f"Aircraft near {origin}", snap.total_aircraft)
+    lc2.metric("Airborne", snap.airborne)
+    lc3.metric("On ground", snap.on_ground)
+    as_of = dt.datetime.utcfromtimestamp(snap.generated_unix).strftime("%Y-%m-%d %H:%M UTC")
+    st.caption(f"As of {as_of} · source: OpenSky Network")
