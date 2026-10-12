@@ -1,3 +1,4 @@
+# Pipeline, notebook helpers and tests. The dashboard has its own pinned file: dashboard/requirements.txt
 requests
 duckdb
 pandas
@@ -5,7 +6,8 @@ pyarrow
 numpy
 holidays
 scikit-learn
-xgboost
 lightgbm
+matplotlib
 streamlit
 plotly
+pytest

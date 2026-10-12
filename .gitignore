@@ -21,6 +21,7 @@ dataset/bts/
 
 # --- Raw & intermediate data (regenerate: ingestion/ then processing/) --
 dataset/bts_parquet/
+dataset/noaa/
 storage/raw-zone/
 storage/curated-zone/
 storage/feature-zone/
@@ -30,11 +31,13 @@ storage/feature-zone/
 # The dashboard bundles its own copies of the figures / metrics / tuned
 # hyper-parameters under dashboard/assets/, so this whole tree stays out of git.
 PRT661_outputs/
+PRT661_outputs.zip
+PRT661_A4_outputs.zip
 
 # --- Dashboard: keep the committed sample + generated assets, drop the rest --
 dashboard/data/*
 !dashboard/data/.gitkeep
-!dashboard/data/predictions.parquet
+!dashboard/data/a4_predictions_sample.parquet
 dashboard/data/predictions_full.parquet
 *.part
 

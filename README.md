@@ -1,102 +1,94 @@
-# PRT661 Group SYD7 — Flight Delay Prediction
+# PRT661 Group SYD7: Flight Delay Prediction
 
-Batch predictive-analytics pipeline: classifies whether a US domestic flight
-will arrive 15+ minutes late, and if so, predicts how many minutes late.
+Batch predictive-analytics system: estimates the probability that a US domestic flight arrives 15+ minutes late,
+and, for flights that are delayed, an 80% range for how many minutes late.
+
+## The notebook is the source of truth
+
+`notebooks/PRT661_Flight_Delay_Full_Analysis.ipynb` is the canonical analysis. It runs on the full 2018–2023 extract
+(~37.9M flights) and produces every number in the final report. All results, the model, the calibrator, the thresholds
+and the figures come from it.
+
+| Notebook part | Content |
+|---|---|
+| Cells 1–75 (Assessment 2) | EDA, walk-forward CV, COVID exclusion, graph features, Optuna tuning, SHAP, fairness |
+| Sections 15–24 (Assessment 4) | Feature audit, training-year hub features, NOAA prior-day weather, leakage tests, ablation, calibration and thresholds, duration range, fairness re-framing, explainability, export |
+
+It checkpoints each step (A4 checkpoints are prefixed `a4_`), so "Run all" resumes after an interruption. Run it in
+Colab or Jupyter. It exports the deployable files to `dashboard/assets/a4/`.
+
+**Final model:** LightGBM, 26 inputs (11 schedule/carrier/network inputs + 15 prior-day NOAA weather inputs), Platt
+calibrated. Trained on 2018 + 2019 + 2022, tested once on 2023 (6,740,139 flights).
+
+| Result (2023 test) | Value |
+|---|---|
+| AUC-ROC, Assessment 2 model → final ablation variant V2 | 0.6755 → 0.6841 (deployed 85%-fit model: 0.6824) |
+| Calibration error, raw → calibrated | 0.270 → 0.006 |
+| Same-day weather upper bound (not deployable) | 0.7088 |
+| Duration 80% range | covers 78.8%, 112 min wide, no skill over a constant |
+
+Source files: `dashboard/assets/a4/a4_ablation_results.csv`, `a4_calibration_summary.csv`, `a4_summary.json`.
 
 ## Repository layout
 
-| Stage | Folder | What it does |
-|---|---|---|
-| Ingestion | `ingestion/` | Downloads BTS on-time performance + OpenFlights airport metadata |
-| Storage | `storage/` | Local raw / curated / feature zones (stand-in for MinIO — see `docker-compose.yml`) |
-| Processing | `processing/` | DuckDB clean + join, then feature engineering |
-| Modelling — local | `models/` | Quick baseline scripts: single time-based holdout, LogReg / RF / XGBoost / LightGBM + duration regressor |
-| Modelling — full | `notebooks/PRT661_Flight_Delay_Full_Analysis.ipynb` | **The canonical analysis** (see below) |
-| Dashboard | `dashboard/` | Multi-page Streamlit app driven by the trained model |
+| Folder | Role |
+|---|---|
+| `notebooks/` | **Canonical analysis** (above) |
+| `dashboard/` | Streamlit app. Reads only the exported files in `dashboard/assets/a4/` and `dashboard/data/` |
+| `processing/calendar_features.py` | Leakage-safe rolling delay rates and training-year hub features. Same definitions as notebook §16–17; imported by the tests |
+| `tests/` | 11 pytest tests (rolling window, no look-ahead, training-only hub features, NOAA quality flag and prior day, calibration, thresholds, data schema) |
+| `monitoring/monitor.py` | Monthly AUC, calibration gap, alert share, PSI and retraining rules on the 2023 sample |
+| `ingestion/` | BTS, OpenFlights and NOAA GHCN-Daily downloads; OpenSky live module |
+| `processing/clean_and_join.py`, `build_features.py` | DuckDB clean + join and feature build; `run_pipeline.sh` runs ingestion → features → tests → monitoring |
+| `experiments/` | One-month inbound-aircraft pilot (not used in the model; see report limitations) |
+| `docs/` | Jira ticket register and dashboard screenshots |
+| `Dockerfile`, `docker-compose.yml` | Dashboard container and local MinIO (container image not built in development) |
 
-### Analysis notebook
+### Scope of the scripts
 
-`notebooks/PRT661_Flight_Delay_Full_Analysis.ipynb` runs the full 2018–2023
-dataset (~37.9M flights) and implements everything the proposal specifies:
-
-- **walk-forward (expanding-window) cross-validation**, folds on complete years;
-- **COVID period (2020–2021) excluded** from training + a separate distribution-shift check;
-- **graph-derived hub features** — out-degree centrality + volume-based hub tier;
-- **Optuna** hyper-parameter tuning (XGBoost, LightGBM, duration regressor);
-- **SHAP** interpretability and a **fairness** breakdown by carrier / hub tier / geography;
-- checkpoint/resume so "Run all" continues after any interruption.
-
-Running it (re)creates `PRT661_outputs/` locally (figures, per-model metrics,
-trained `.pkl`s, tuned hyper-parameters). That folder is **git-ignored** — the
-committed copies that the dashboard and `generate_predictions.py` use live in
-`dashboard/assets/` (`figures/`, `*.csv`, `model_metrics.json`,
-`best_hyperparameters.json`, `run_config.json`).
-Production fold: **train 2018 + 2019 + 2022 → test 2023**; best model
-**tuned LightGBM, AUC-ROC ≈ 0.675, F1 ≈ 0.41**
-(`dashboard/assets/final_tuned_model_metrics.csv`).
-
-The `models/*.py` scripts are a lighter, faster local baseline (single 80/20
-time holdout, fewer features) kept for `run_pipeline.sh`; their numbers are not
-the ones reported.
+The scripts cover data preparation, tests, monitoring and the dashboard. Model training, the ablation, calibration,
+thresholds and the duration quantiles live only in the notebook; it exports the files the dashboard reads.
+The Assessment 2 local baseline scripts were retired because the notebook supersedes them (they scored AUC ≈ 0.675).
 
 ## Quick start
 
 ```bash
-python3 -m pip install -r requirements.txt
-
-# Option A — full analysis: open the notebook in Colab / Jupyter and Run All.
-# Option B — local baseline pipeline:
-./run_pipeline.sh        # ingest -> clean -> features -> train -> predict
-
-# Dashboard (needs storage/feature-zone/features.parquet from the pipeline
-# or the notebook's feature build):
-python dashboard/generate_predictions.py    # build predictions from the tuned model
-./run_dashboard.sh                          # streamlit run dashboard/streamlit_app.py
+python3 -m pip install -r dashboard/requirements.txt     # pinned versions used for the results
+./run_dashboard.sh                                        # streamlit run dashboard/streamlit_app.py
+python3 -m pytest tests -q                                # 11 tests
+python3 monitoring/monitor.py                             # monitoring report and figure
 ```
 
-`dashboard/data/predictions.parquet` (a 300k-row 2023 sample) is committed, so
-the dashboard runs straight after `pip install` without rebuilding anything.
-
-## Dataset
-
-Primary: **BTS Airline On-Time Performance Dataset** (2018–2023), the source
-named in the Assessment 1 proposal.
-Official page: https://www.transtats.bts.gov/Fields.asp?gnoyr_VQ=FGJ
-Direct monthly file (used by `ingestion/download_bts.py`):
-```
-https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_{YEAR}_{MONTH}.zip
-```
-Supplementary: **OpenFlights** airport metadata (`ingestion/download_openflights.py`,
-https://openflights.org/data.php).
-
-`dataset/bts_parquet/` (72 monthly files, Jan 2018 – Dec 2023) and
-`storage/` are **git-ignored** — rebuild them with `ingestion/download_bts.py`
-+ `ingestion/import_from_downloads.py` + `processing/`, or `./run_pipeline.sh`.
-`dataset/openflights/airports.dat` is committed (small, public ODbL data).
-
-## Known gaps / deferred work
-
-- **NOAA weather is not joined yet.** The proposal's Five Vs and feature set
-  reference weather; this build joins BTS + OpenFlights only. This caps the
-  classifier near AUC ≈ 0.68 (weather-enhanced models in the literature reach
-  0.80–0.92) and is the top priority for Assessment 3: add
-  `ingestion/download_noaa.py` + a nearest-station join in
-  `processing/clean_and_join.py`.
-- **Delay-*duration* is essentially unpredictable** from the current features
-  (R² ≈ 0) — magnitude depends on the specific delay cause. Reported as a
-  negative finding.
-- **Airflow DAG and real MinIO/S3 wiring are stubbed** — `docker-compose.yml`
-  starts MinIO locally, but the scripts read/write local folders under
-  `storage/`, not the S3 API (`run_pipeline.sh` stands in for the DAG).
-- The `models/*.py` local pipeline still uses a single time-based holdout; the
-  notebook is the walk-forward version.
+The dashboard starts straight after install: the model bundles, thresholds, reference tables and a 300,000-flight 2023
+sample are committed under `dashboard/`. To regenerate them, run the notebook and copy its `a4_outputs` folder into
+`dashboard/assets/a4/`.
 
 ## Dashboard
 
-See `dashboard/README.md`. Multi-page Streamlit app: Overview · **Predict a
-Flight** · Model Performance · Explainability · Fairness · Data & EDA · About.
-The Predict page loads the fitted models (`dashboard/assets/model_*.joblib`,
-written by `generate_predictions.py`) and returns a live P(delay) + estimated
-minutes for user-entered flight details. Everything is driven by
-`generate_predictions.py` output and the committed `dashboard/assets/`
-artifacts. Replaces the Plotly Dash app named in the Assessment 1 proposal.
+Seven pages: Overview · Predict a Flight · Model Performance · Explainability · Fairness · Data & EDA · About.
+
+- Predict a Flight returns a calibrated probability, the alert level with its 2023 precision, recall and workload, an
+  80% duration range with a reliability warning, and plain-language reasons.
+- It looks up the previous day's weather at the nearest NOAA station (`dashboard/noaa_live.py`). If NOAA cannot be
+  reached, the weather is treated as unknown or a manual scenario can be entered.
+- An OpenSky panel shows live aircraft near the origin for context only (not a model input).
+
+See `dashboard/README.md`.
+
+## Data
+
+- **BTS Airline On-Time Performance**, 2018–2023: https://www.transtats.bts.gov/Fields.asp?gnoyr_VQ=FGJ
+- **NOAA GHCN-Daily** (`ingestion/download_noaa.py`): US stations, 13 elements, quality-flag-passed rows, 127.3M observations.
+  Only the previous day (d−1) is used as a deployable input; same-day weather appears only in the labelled upper-bound experiment.
+- **OpenFlights** airports: https://openflights.org/data.php (`dataset/openflights/airports.dat`, ODbL).
+
+Raw BTS/NOAA data, `storage/` and `PRT661_outputs/` are git-ignored and rebuilt by the ingestion scripts or the notebook.
+
+## Known limitations
+
+- Modest discrimination (AUC ≈ 0.68): prior-day weather adds +0.008; same-day weather would add about +0.025 but is not available before departure.
+- One test year (2023) and one split; the bootstrap interval covers sampling noise only.
+- Delay duration has no skill over a constant guess (R² ≈ −0.07), so only a wide range is shown.
+- Hyper-parameters are those tuned in Assessment 2; re-tuning on the 26 inputs is future work.
+- Monitoring is a prototype: no scheduler, no automatic retraining, no model registry, and R1 fires seasonally without a same-season reference.
+- The dashboard has no authentication (local or trusted network only). Airflow and S3/MinIO wiring are not built; the local `storage/` folders stand in.
