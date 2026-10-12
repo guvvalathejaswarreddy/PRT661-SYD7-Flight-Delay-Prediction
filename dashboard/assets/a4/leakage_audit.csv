@@ -1,0 +1,9 @@
+check,passed
+"Rolling rate == explicit loop over [d-7, d-1] (2,000 random origin-days)",True
+Perturbing day-d outcomes leaves the day-d feature unchanged,True
+... but does reach day d+1 (the window is not vacuous),True
+Airports unseen in training get fallback tier 'small' / centrality 0,True
+"origin_degree_centrality within [0, 1]",True
+"o_prcp_d1 equals the PRCP observation of day d-1 (5,000 random flights)",True
+Changing day-d weather does not change the prior-day feature,True
+No input column is a target or target-derived (arr_*),True

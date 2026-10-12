@@ -1,0 +1,12 @@
+feature(s),source,when it becomes available,construction / safeguard,usable at prediction time?
+"crs_dep_hour, day_of_week, is_weekend, month",BTS schedule,"Published schedule, weeks ahead",Deterministic function of scheduled time,Yes
+is_holiday,`holidays` calendar,Known years ahead,Deterministic calendar lookup,Yes
+distance,BTS / route table,Known when the flight is scheduled,Route constant,Yes
+carrier,BTS,Known when the flight is scheduled,Categorical,Yes
+carrier_delay_rate_7d,BTS outcomes,Available after the overnight refresh on flight day,"Flight-weighted arr_del15 over calendar days [d-7, d-1]. Caveat: a late-evening flight of d-1 can land after midnight, so for departures in the first hours of day d one or two d-1 outcomes may not yet be known (a negligible share of the window)",Yes (needs a nightly refresh)
+origin_delay_rate_7d,BTS outcomes,Available at 00:00 on flight day,"Same, grouped by origin airport",Yes (needs a nightly refresh)
+"origin_degree_centrality, origin_hub_tier",BTS route history,Fixed at training time,Computed from training years only; unseen airports -> fallback,Yes
+"o_*_d1, d_*_d1 (prior-day weather)",NOAA GHCN-Daily,Day d-1 summary is normally posted within about a day; confirm the latency before deployment (fall back to d-2 if needed),"Nearest station within 50 km, previous calendar day",Yes (needs a daily NOAA pull)
+o_prcp_3d,NOAA GHCN-Daily,Same,"Precipitation total over [d-3, d-1]",Yes
+"o_*_d0, d_*_d0 (same-day weather)",NOAA GHCN-Daily,Only after day d has finished,Used ONLY in the section-20 upper-bound experiment,NO - not available before departure
+"arr_del15, arr_delay_minutes",BTS,After the flight lands,Targets only,Never an input
