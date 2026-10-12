@@ -1,0 +1,5 @@
+metric,value
+share of airport-days whose 7-row window spans more than 7 calendar days,0.052676935456685677
+"same, weighted by flights",0.0030762257582799286
+95th percentile calendar span of the 7-row window (days),8.0
+maximum span (days),1593.0
