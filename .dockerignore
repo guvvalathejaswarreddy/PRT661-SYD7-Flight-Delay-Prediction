@@ -1,0 +1,8 @@
+.git
+dataset
+PRT661_outputs
+*.zip
+*.pdf
+notebooks
+docs
+__pycache__

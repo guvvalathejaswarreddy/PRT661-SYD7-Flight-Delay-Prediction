@@ -1,10 +1,12 @@
-# Dashboard app
-streamlit>=1.32
-pandas>=2.0
-numpy>=1.24
-plotly>=5.18
-pyarrow>=14
-scikit-learn>=1.3
-joblib>=1.3
-holidays>=0.40
-lightgbm>=4.0   # also loads the saved model on the Predict page
+# Dashboard app -- exact versions used for the Assessment 4 results (Python 3.10)
+streamlit==1.61.1
+pandas==2.3.3
+numpy==2.2.6
+plotly==6.9.0
+pyarrow==24.0.0
+scikit-learn==1.7.2
+joblib==1.5.3
+holidays==0.94
+lightgbm==4.7.0
+scipy==1.13.1       # pinned: an unpinned install pulled scipy 1.15.3, which failed to load on macOS 27 (arm64) in a clean venv
+requests==2.33.1   # live NOAA + OpenSky lookups on the Predict page

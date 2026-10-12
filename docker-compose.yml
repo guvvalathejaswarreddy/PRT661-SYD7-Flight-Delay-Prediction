@@ -12,5 +12,11 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
+  dashboard:
+    build: .
+    container_name: prt661-dashboard
+    ports:
+      - "8501:8501"   # Streamlit dashboard
+
 volumes:
   minio_data:
