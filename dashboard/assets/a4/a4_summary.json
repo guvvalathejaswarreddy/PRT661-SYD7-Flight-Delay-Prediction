@@ -1,0 +1,75 @@
+{
+  "train_years": [
+    2018,
+    2019,
+    2022
+  ],
+  "test_year": 2023,
+  "n_train": 20865861,
+  "n_test": 6740139,
+  "ablation": {
+    "A2 (reference, published)": {
+      "auc_roc": 0.6754712863700759,
+      "avg_precision": 0.35551002106803736,
+      "f1": 0.40721726547721476,
+      "precision": 0.29741548515121347,
+      "recall": 0.6455430358176091,
+      "brier": 0.23157058018925847
+    },
+    "V1_leakage_safe": {
+      "auc_roc": 0.6761026915896653,
+      "avg_precision": 0.35703109078327017,
+      "f1": 0.4079712576732596,
+      "precision": 0.2985064348298181,
+      "recall": 0.6442076131357687,
+      "brier": 0.2313617065048875
+    },
+    "V2_plus_prior_day_weather": {
+      "auc_roc": 0.6840805354620326,
+      "avg_precision": 0.3645230967580714,
+      "f1": 0.414725604438433,
+      "precision": 0.30757807782050156,
+      "recall": 0.6364324374241564,
+      "brier": 0.22637327369111407
+    },
+    "V3_same_day_weather_UPPER_BOUND": {
+      "auc_roc": 0.7088191077091757,
+      "avg_precision": 0.405212186055643,
+      "f1": 0.4372347468038541,
+      "precision": 0.33777843143654757,
+      "recall": 0.6197010557847394,
+      "brier": 0.21424734647064234
+    }
+  },
+  "calibration": {
+    "raw score (balanced class weights)": {
+      "auc_roc": 0.6823895837812832,
+      "avg_precision": 0.3629080495257391,
+      "f1": 0.4131940713578513,
+      "precision": 0.3064746495158008,
+      "recall": 0.6339434000106776,
+      "brier": 0.22614050133494118,
+      "ECE": 0.2697433504952058
+    },
+    "calibrated (platt)": {
+      "auc_roc": 0.6823895837903118,
+      "avg_precision": 0.3629080488268522,
+      "f1": 0.10414993236507683,
+      "precision": 0.5578273238133943,
+      "recall": 0.05743688306141501,
+      "brier": 0.15126214171138996,
+      "ECE": 0.006348209377673604
+    }
+  },
+  "thresholds": {
+    "max_f1": 0.21,
+    "min_cost": 0.25,
+    "cost_theory": 0.25,
+    "budget_5pct": 0.4310617446899414,
+    "budget_10pct": 0.3674781024456024,
+    "budget_20pct": 0.29272550344467163
+  },
+  "duration_interval_coverage_80": 0.7877053095136061,
+  "duration_median_interval_width_min": 112.059220573269,
+  "weather_share_of_contribution": 0.2636052144157901
+}

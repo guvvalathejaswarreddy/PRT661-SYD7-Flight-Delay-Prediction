@@ -33,6 +33,15 @@ for i in range(0, len(pairs), 2):
             lib.show_figure(fname, cap)
 
 st.divider()
+st.subheader("NOAA weather coverage (Assessment 4)")
+c1, c2 = st.columns([1, 1])
+with c1:
+    lib.show_figure("22_weather_coverage.png", "Share of airport-days with a value, per weather element (2018–2023)")
+with c2:
+    st.markdown("Each airport is matched to the nearest GHCN-Daily station that reports each element (median distance 0.8 km for precipitation). "
+                "Missing values are passed to the model as missing, not filled in.")
+
+st.divider()
 st.subheader("Interactive views")
 tab1, tab2, tab3 = st.tabs(["Monthly delay by carrier", "US airport map", "Carrier → hub tier"])
 with tab1:

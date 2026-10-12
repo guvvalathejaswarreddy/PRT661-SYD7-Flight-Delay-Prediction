@@ -22,21 +22,11 @@ ASSETS_DIR = DASHBOARD_DIR / "assets"
 FIGURES_DIR = ASSETS_DIR / "figures"
 DATA_DIR = DASHBOARD_DIR / "data"
 
-PREDICTIONS_PATH = DATA_DIR / "predictions.parquet"
-PREDICTIONS_FULL_PATH = DATA_DIR / "predictions_full.parquet"
-METRICS_PATH = ASSETS_DIR / "model_metrics.json"
-MODEL_CLF_PATH = ASSETS_DIR / "model_classifier.joblib"
-MODEL_REG_PATH = ASSETS_DIR / "model_regressor.joblib"
-PREDICT_REF_PATH = ASSETS_DIR / "predict_reference.json"
-
-# Model input schema (must match dashboard/generate_predictions.py).
-NUMERIC_FEATURES = [
-    "crs_dep_hour", "day_of_week", "is_weekend", "month", "is_holiday",
-    "distance", "carrier_delay_rate_7d", "origin_delay_rate_7d",
-    "origin_degree_centrality",
-]
-CATEGORICAL_FEATURES = ["carrier", "origin_hub_tier"]
-ALL_FEATURES = NUMERIC_FEATURES + CATEGORICAL_FEATURES
+# --- Assessment 4 assets (exported by section 24 of the analysis notebook) ---
+A4_DIR = ASSETS_DIR / "a4"
+A4_SAMPLE_PATH = DATA_DIR / "a4_predictions_sample.parquet"
+A4_CLF_PATH = A4_DIR / "a4_classifier_bundle.joblib"
+A4_DUR_PATH = A4_DIR / "a4_duration_quantile_bundle.joblib"
 
 BRAND = "#2563EB"
 ACCENT = "#DD8452"
@@ -80,43 +70,6 @@ def page(title: str = "") -> None:
 # Data loading (cached)
 # --------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
-def load_predictions(prefer_full: bool = False) -> pd.DataFrame:
-    path = PREDICTIONS_FULL_PATH if (prefer_full and PREDICTIONS_FULL_PATH.exists()) else PREDICTIONS_PATH
-    if not path.exists():
-        return pd.DataFrame()
-    df = pd.read_parquet(path)
-    df["flight_date"] = pd.to_datetime(df["flight_date"])
-    if "actual_delayed" in df.columns:
-        df["actual_delayed"] = df["actual_delayed"].astype(bool)
-    if "predicted_delayed" in df.columns:
-        df["predicted_delayed"] = df["predicted_delayed"].astype(bool)
-    return df
-
-
-@st.cache_data(show_spinner=False)
-def load_metrics() -> dict:
-    if METRICS_PATH.exists():
-        return json.loads(METRICS_PATH.read_text())
-    return {}
-
-
-@st.cache_resource(show_spinner="Loading trained models…")
-def load_models():
-    """(classifier_pipeline, regressor_pipeline) or (None, None) if not built yet."""
-    import joblib
-    if MODEL_CLF_PATH.exists() and MODEL_REG_PATH.exists():
-        return joblib.load(MODEL_CLF_PATH), joblib.load(MODEL_REG_PATH)
-    return None, None
-
-
-@st.cache_data(show_spinner=False)
-def load_predict_reference() -> dict:
-    if PREDICT_REF_PATH.exists():
-        return json.loads(PREDICT_REF_PATH.read_text())
-    return {}
-
-
-@st.cache_data(show_spinner=False)
 def load_csv(name: str) -> pd.DataFrame:
     p = ASSETS_DIR / name
     return pd.read_csv(p) if p.exists() else pd.DataFrame()
@@ -151,20 +104,76 @@ def show_figure(name: str, caption: str = "") -> None:
         st.image(str(p), caption=caption or None, width="stretch")
 
 
-def no_predictions_banner() -> bool:
-    """Returns True when prediction data is present (caller should continue)."""
-    if load_predictions().empty:
-        st.error("No prediction data. Run: `python dashboard/generate_predictions.py`")
-        return False
-    return True
 
 
-def equalised_odds_gap(frame: pd.DataFrame) -> float:
-    return max(
-        frame["tpr"].max() - frame["tpr"].min(),
-        frame["fpr"].max() - frame["fpr"].min(),
-    )
+
+# --------------------------------------------------------------------------
+# Assessment 4: calibrated probability, quantile duration, thresholds
+# --------------------------------------------------------------------------
+@st.cache_data(show_spinner=False)
+def load_a4_sample() -> pd.DataFrame:
+    """300k stratified 2023 flights with calibrated probability and duration range."""
+    if not A4_SAMPLE_PATH.exists():
+        return pd.DataFrame()
+    df = pd.read_parquet(A4_SAMPLE_PATH)
+    df["flight_date"] = pd.to_datetime(df["flight_date"])
+    return df
 
 
-def demographic_parity_gap(frame: pd.DataFrame) -> float:
-    return frame["positive_pred_rate"].max() - frame["positive_pred_rate"].min()
+@st.cache_data(show_spinner=False)
+def a4_csv(name: str) -> pd.DataFrame:
+    p = A4_DIR / name
+    return pd.read_csv(p) if p.exists() else pd.DataFrame()
+
+
+@st.cache_data(show_spinner=False)
+def a4_json(name: str) -> dict:
+    p = A4_DIR / name
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+@st.cache_resource(show_spinner="Loading the Assessment 4 models…")
+def load_a4_models():
+    """(classifier bundle, duration bundle) or (None, None)."""
+    import warnings
+
+    import joblib
+    if A4_CLF_PATH.exists() and A4_DUR_PATH.exists():
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")       # scikit-learn minor-version pickle notice
+            return joblib.load(A4_CLF_PATH), joblib.load(A4_DUR_PATH)
+    return None, None
+
+
+def calibrate(raw, bundle):
+    """Raw LightGBM score -> calibrated probability, using the calibrator fitted on held-out validation data."""
+    import numpy as np
+    raw = np.asarray(raw, dtype=float).ravel()
+    if bundle["calibration_method"] == "platt":
+        z = np.log(np.clip(raw, 1e-6, 1 - 1e-6) / (1 - np.clip(raw, 1e-6, 1 - 1e-6))).reshape(-1, 1)
+        return bundle["calibrator"].predict_proba(z)[:, 1]
+    return bundle["calibrator"].predict(raw)
+
+
+def a4_operating_levels() -> list[dict]:
+    """Alert levels offered to the user: threshold chosen on validation data + its 2023 backtest result."""
+    thr = a4_json("a4_thresholds.json").get("thresholds", {})
+    ops = a4_csv("a4_operating_points.csv")
+    if not thr or ops.empty:
+        return []
+    want = [
+        ("Balanced (max F1)", thr["max_f1"], "max F1 on validation"),
+        ("Cost-weighted (a miss costs 3x a false alarm)", thr["min_cost"], "min expected cost on validation"),
+        ("Alert budget: top 10% of flights", thr["budget_10pct"], "alert budget: top 10% of flights"),
+        ("High precision (about 1 in 2 alerts is right)", None, "smallest threshold with validation precision >= 50%"),
+    ]
+    out = []
+    for label, t, key in want:
+        row = ops[ops["operating point"].str.startswith(key)]
+        if row.empty:
+            continue
+        r = row.iloc[0]
+        out.append({"label": label, "threshold": float(r["threshold"] if t is None else t),
+                    "flagged": float(r["flights flagged"]), "precision": float(r["precision"]),
+                    "recall": float(r["recall"]), "alerts_per_day": float(r["alerts per day (network)"])})
+    return out

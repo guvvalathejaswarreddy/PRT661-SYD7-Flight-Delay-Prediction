@@ -1,74 +1,55 @@
-# Flight Delay Prediction — Streamlit Dashboard
+# Flight Delay Prediction: Streamlit Dashboard
 
-Multi-page dashboard driven by the **actual trained model** (tuned LightGBM
-classifier + duration regressor; walk-forward production fold: train
-2018 + 2019 + 2022 → test 2023).
+Multi-page dashboard for the final (Assessment 4) model: a calibrated LightGBM classifier with 26 inputs (including
+prior-day NOAA weather) and quantile duration models. It reads only files exported by the analysis notebook
+(`notebooks/PRT661_Flight_Delay_Full_Analysis.ipynb`, sections 15-24), so it starts without the 37.9M-row dataset.
 
 ## Pages
 
 | Page | Contents |
 |---|---|
-| **Overview** (home) | 2023 predictions: filters, KPIs, predicted-vs-actual delay rate by carrier/airport, probability distribution, weekly trend, flight-level table + CSV export |
-| **Predict a Flight** | Enter carrier / route / date / time → the trained classifier + duration regressor return P(delay), a verdict at the chosen threshold, estimated minutes late, and a plain-language "what's driving this" |
-| **Model Performance** | Final tuned-model metrics, walk-forward folds, interactive decision-threshold explorer (live confusion matrix), duration regressor, COVID distribution-shift check |
-| **Explainability** | SHAP beeswarm + mean-\|SHAP\| importance, with a written read-out |
-| **Fairness** | Per-group AUC / TPR / FPR and equalised-odds & demographic-parity gaps by carrier, hub tier, geography |
-| **Data & EDA** | Five Vs table, exploratory figures, interactive Plotly views |
-| **About** | Project summary, method, model card, known limitations |
+| **Overview** | 2023 sample: filters, KPIs, predicted vs actual delay rate, probability distribution, trend |
+| **Predict a Flight** | Carrier / route / date / time -> calibrated probability, alert level with 2023 precision, recall and workload, 80% duration range with reliability warning, plain-language reasons, live NOAA prior-day lookup, OpenSky context panel |
+| **Model Performance** | Ablation, calibration, thresholds and alert workload, duration range |
+| **Explainability** | SHAP importance and contribution of the weather inputs |
+| **Fairness** | Base-rate and calibration framing, equalised-odds gaps, per-carrier thresholds |
+| **Data & EDA** | Five Vs, weather coverage, exploratory figures |
+| **About** | Model card, governance, limitations |
 
 ## Running the dashboard
 
-From the repository's `software/` folder:
-
 ```bash
-python -m pip install -r dashboard/requirements.txt
-streamlit run dashboard/streamlit_app.py      # or ./run_dashboard.sh
+python -m pip install -r dashboard/requirements.txt   # pinned versions
+streamlit run dashboard/streamlit_app.py              # or ./run_dashboard.sh
 ```
 
-The app is served at http://localhost:8501.
+Served at http://localhost:8501.
 
 ## Data it reads
 
-Everything the app needs is committed under `dashboard/`:
-
 ```
 dashboard/
-├── streamlit_app.py            # entry point — wires st.navigation only
-├── views/                      # the 6 page bodies (overview, performance, …)
-├── lib.py                      # shared paths / loaders / styling
-├── generate_predictions.py     # (re)builds predictions.parquet from the model
-├── .streamlit/config.toml      # theme + viewer toolbar
+├── streamlit_app.py            # entry point (st.navigation)
+├── views/                      # the 7 page bodies
+├── lib.py                      # paths, loaders, calibration, styling
+├── noaa_live.py                # previous-day NOAA lookup (nearest mapped station)
 ├── data/
-│   └── predictions.parquet     # 300k stratified sample of 2023 predictions (committed)
+│   └── a4_predictions_sample.parquet   # 300k stratified 2023 sample used by the pages
 └── assets/
-    ├── model_classifier.joblib # fitted tuned-LightGBM classifier pipeline (Predict page)
-    ├── model_regressor.joblib  # fitted duration-regressor pipeline (Predict page)
-    ├── predict_reference.json  # per-airport / per-carrier / per-route lookups for the form
-    ├── model_metrics.json      # metrics from the last generate_predictions.py run
-    ├── figures/                # all 21 analysis figures (PNG + interactive HTML)
-    └── *.csv                   # walk-forward, fairness, COVID, Five Vs tables
+    ├── a4/                     # FINAL exports from the notebook: model + duration bundles, calibrated thresholds,
+    │                           #   operating points, fairness, ablation, monitoring, station map, phrases
+    ├── figures/                # analysis figures (PNG + interactive HTML)
+    └── *.csv, best_hyperparameters.json   # Assessment 2 walk-forward / COVID / Five Vs tables still shown
 ```
 
-`generate_predictions.py` writes the two `.joblib` models and
-`predict_reference.json` alongside the metrics — the **Predict a Flight** page
-loads those directly, so it uses exactly the model that produced the dashboard
-numbers.
+To refresh the dashboard, re-run the notebook and copy its `a4_outputs` folder into `assets/a4/`.
 
-## Regenerate predictions from the model
+## Checks
 
 ```bash
-python dashboard/generate_predictions.py            # ~2 min, 5M-row training sample
-python dashboard/generate_predictions.py --full     # every training row (more RAM/time)
-python dashboard/generate_predictions.py --write-full  # also emit predictions_full.parquet
+python3 -m pytest tests -q       # 11 tests incl. prior-day weather and calibration
+python3 monitoring/monitor.py    # monthly AUC, calibration gap, alert share, PSI
 ```
 
-It re-fits the tuned LightGBM classifier + duration regressor from
-`assets/best_hyperparameters.json` on 2018 + 2019 + 2022, scores 2023, writes a
-stratified sample to `data/predictions.parquet`, and refreshes
-`assets/model_metrics.json`. Requires `storage/feature-zone/features.parquet`
-(built by `../run_pipeline.sh`) or `--features PATH`.
-
-On the full training set the classifier reaches **AUC-ROC ≈ 0.675**, **F1 ≈ 0.41**
-(`assets/final_tuned_model_metrics.csv`). The duration regressor's R² ≈ 0 is a
-reported negative finding — delay magnitude depends on cause-level and weather
-data, which are not yet joined.
+Limitations: figures here come from a 300,000-flight sample, so they match the full 2023 test set closely but not
+exactly; the dashboard has no authentication and is intended for a local or trusted network.
